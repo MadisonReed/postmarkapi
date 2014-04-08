@@ -1,5 +1,9 @@
 // external dependencies
 var request = require('request');
+var async = require('async');
+var fs = require('fs');
+var path = require('path');
+var mime = require('mime');
 
 // internal dependencies
 var PMKError = require('./error.js');
@@ -32,13 +36,17 @@ function PMK(token) {
   @param {String|String[]} message.to Email recipient(s)
   @param {String|String[]} [message.cc] Carbon copy recipient(s)
   @param {String|String[]} [message.bcc] Blind carbon copy recipient(s)
-  @param {String|String[]} [message.reply] Reply To email address
+  @param {String|String[]} [message.reply] Reply-To email address
+  @param {String} [message.tag] Tag
+  @param {Object} [message.headers] Custom headers to send in request (key value pairs)
+  @param {Buffer[]|Stream[]|String[]|Object[]} Attachments (if a string, should point to a local file) (will generate filenames if Buffer or Stream passed)
   @param {String} message.subject Subject
   @param {String} [message.text] Text body
   @param {String} [message.html] HTML body
   @param {Function} [callback] Callback function
 */
 PMK.prototype.email = function(message, callback) {
+  var self = this;
   var body = {};
   var postmarkKey, key;
   var recipients = 0;
@@ -107,52 +115,105 @@ PMK.prototype.email = function(message, callback) {
     return;
   }
 
-  // rest of the keys
-  var pairs = {
-    reply: 'ReplyTo',
-    tag: 'Tag',
-    html: 'HtmlBody',
-    text: 'TextBody',
-    headers: 'Headers', // to do: make this one better
-    subject: 'Subject',
-    to: 'To',
-    attachments: 'Attachments' // to do: make this one better
-  }
-  for (key in pairs) {
-    if (message[key]) {
-      body[ pairs[key] ] = message[key];
+  if (message.headers) {
+    body.Headers = [];
+
+    for (key in message.headers) {
+      body.Headers.push({
+        Name: key,
+        Value: message.headers[key]
+      });
     }
   }
 
-  // finally, the request
-  request({
-    method: 'POST',
-    uri: 'https://api.postmarkapp.com/email',
-    headers: {
-      charset: 'utf-8',
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      'X-Postmark-Server-Token': this.token
-    },
-    body: JSON.stringify(body)
-  }, function(err, res, body) {
+  if (message.attachments) {
+    body.Attachments = [];
+
+    async.each(message.attachments, function(filepath, cb) {
+      if (typeof filepath !== 'string') {
+        cb(new PMKError('Attachments must be file paths'));
+        return;
+      }
+
+      fs.readFile(filepath, function(err, content) {
+        if (err) {
+          cb(err);
+          return;
+        }
+
+        body.Attachments.push({
+          Name: path.basename(filepath),
+          Content: content.toString('base64'),
+          ContentType: mime.lookup(filepath)
+        });
+        cb();
+      });
+    }, doRequest);
+  } else {
+    doRequest();
+  }
+
+  function doRequest(err) {
     if (err) {
       callback(err);
       return;
     }
 
-    var result;
-
-    try {
-      result = JSON.parse(body);
-    } catch(err) {
-      callback(new PMKError('Failed to parse response'));
-      return;
+    // rest of the keys
+    var pairs = {
+      reply: 'ReplyTo',
+      tag: 'Tag',
+      html: 'HtmlBody',
+      text: 'TextBody',
+      subject: 'Subject',
+      to: 'To'
+    }
+    for (key in pairs) {
+      if (message[key]) {
+        body[ pairs[key] ] = message[key];
+      }
     }
 
-    // to do: deal with errors in response
-    callback(null, result);
-  });
+    // finally, the request
+    request({
+      method: 'POST',
+      uri: 'https://api.postmarkapp.com/email',
+      headers: {
+        charset: 'utf-8',
+        Accept: 'application/json',
+        'Content-Type': 'application/json',
+        'X-Postmark-Server-Token': self.token
+      },
+      body: JSON.stringify(body)
+    }, function(err, res, body) {
+      if (err) {
+        callback(err);
+        return;
+      }
+
+      var result;
+
+      try {
+        result = JSON.parse(body);
+      } catch(err) {
+        callback(new PMKError('Failed to parse response'));
+        return;
+      }
+
+      if (result.ErrorCode) {
+        if (result.Message) {
+          err = result.Message;
+          delete result.Message;
+        } else {
+          err = 'Failed to send email';
+        }
+        callback(new PMKError(err, result));
+        return;
+      }
+
+      callback(null, result);
+    });
+  }
 };
 
 module.exports = PMK;
