@@ -43,7 +43,7 @@ function PMK(token) {
   @param {String|String[]} [message.reply] Reply-To email address
   @param {String} [message.tag] Tag
   @param {Object} [message.headers] Custom headers to send in request (key value pairs)
-  @param {Buffer[]|Stream[]|String[]|Object[]} Attachments (if a string, should point to a local file) (will generate filenames if Buffer or Stream passed)
+  @param {String[]} Attachments (string paths to local files)
   @param {String} message.subject Subject
   @param {String} [message.text] Text body
   @param {String} [message.html] HTML body
@@ -233,7 +233,7 @@ PMK.prototype.bounceDump = function(id, callback) {
 
   @param {Function} callback Callback function
 */
-PMK.prototype.bounceDump = function(callback) {
+PMK.prototype.bounceTags = function(callback) {
   this.get('bounces/tags', callback);
 };
 
@@ -455,7 +455,7 @@ PMK.prototype.server = function(id, callback) {
 /**
   Creates a new server
 
-  @param {Object} options The listing options
+  @param {Object} options The creation options
   @param {String} options.name The name of the server
   @param {String} [options.color] The color indicator (e.g. 'red')
   @param {Boolean} [options.smtp] Indicate if this Server should have SMTP access turned on
