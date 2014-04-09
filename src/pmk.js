@@ -179,16 +179,97 @@ PMK.prototype.email = function(message, callback) {
       token: self.token,
       method: 'POST',
       pathname: 'email',
-      body: body
+      args: body
     }, callback);
   }
 };
 
+/**
+  Returns a summary of inactive emails and bounces by type over the entire history of the server
+
+  @param {Function} callback Callback function
+*/
 PMK.prototype.deliverystats = function(callback) {
   makeRequest({
     token: this.token, 
     method: 'GET', 
     pathname: 'deliverystats'
+  }, callback);
+};
+
+/**
+  Retrieves bounces
+
+  @param {Object} options Options for the request
+  @param {String|Number} [options.count] Count for paging [Required if not passing messageID]
+  @param {String|Number} [options.offset] Offset for paging [Required if not passing messageID]
+  @param {String} [options.type] Bounce type
+  @param {Boolean} [options.inactive] Filter by inactive / active status
+  @param {String} [options.emailFilter] Filters out emails that don't match this substring
+  @param {String} [options.messageID] Returns only messages matching the given message id
+  @param {Function} callback Callback function
+*/
+PMK.prototype.bounces = function(options, callback) {
+  makeRequest({
+    token: this.token,
+    method: 'GET',
+    pathname: 'bounces',
+    args: options
+  }, callback);
+};
+
+/**
+  Gets a single bounce
+
+  @param {String} id The bounce id
+  @param {Function} callback Callback function
+*/
+PMK.prototype.bounce = function(id, callback) {
+  makeRequest({
+    token: this.token,
+    method: 'GET',
+    pathname: 'bounces/' + id
+  }, callback);
+};
+
+/**
+  Returns a single bounce's dump
+
+  @param {String} id The bounce id
+  @param {Function} callback Callback function
+*/
+PMK.prototype.bounceDump = function(id, callback) {
+  makeRequest({
+    token: this.token,
+    method: 'GET',
+    pathname: 'bounces/' + id + '/dump'
+  }, callback);
+};
+
+/**
+  Returns a list of tags used for the current server.
+
+  @param {Function} callback Callback function
+*/
+PMK.prototype.bounceDump = function(callback) {
+  makeRequest({
+    token: this.token,
+    method: 'GET',
+    pathname: 'bounces/tags'
+  }, callback);
+};
+
+/**
+  Activates a deactivated bounce
+
+  @param {String} id The bounce id
+  @param {Function} callback Callback function
+*/
+PMK.prototype.bounceActivate = function(id, callback) {
+  makeRequest({
+    token: this.token,
+    method: 'PUT',
+    pathname: 'bounces/' + id + '/active'
   }, callback);
 };
 
@@ -204,8 +285,12 @@ function makeRequest(options, callback) {
     }
   };
 
-  if (options.body) {
-    requestDetails.body = JSON.stringify(options.body);
+  if (options.args) {
+    if (options.method.toUpperCase() === 'POST') {
+      requestDetails.body = JSON.stringify(options.args);
+    } else {
+      requestDetails.qs = options.args;
+    }
   }
 
   request(requestDetails, function(err, res, body) {
