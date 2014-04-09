@@ -175,45 +175,67 @@ PMK.prototype.email = function(message, callback) {
     }
 
     // finally, the request
-    request({
+    makeRequest({
+      token: self.token,
       method: 'POST',
-      uri: 'https://api.postmarkapp.com/email',
-      headers: {
-        charset: 'utf-8',
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'X-Postmark-Server-Token': self.token
-      },
-      body: JSON.stringify(body)
-    }, function(err, res, body) {
-      if (err) {
-        callback(err);
-        return;
-      }
-
-      var result;
-
-      try {
-        result = JSON.parse(body);
-      } catch(err) {
-        callback(new PMKError('Failed to parse response'));
-        return;
-      }
-
-      if (result.ErrorCode) {
-        if (result.Message) {
-          err = result.Message;
-          delete result.Message;
-        } else {
-          err = 'Failed to send email';
-        }
-        callback(new PMKError(err, result));
-        return;
-      }
-
-      callback(null, result);
-    });
+      pathname: 'email',
+      body: body
+    }, callback);
   }
 };
+
+PMK.prototype.deliverystats = function(callback) {
+  makeRequest({
+    token: this.token, 
+    method: 'GET', 
+    pathname: 'deliverystats'
+  }, callback);
+};
+
+function makeRequest(options, callback) {
+  var requestDetails = {
+    method: options.method,
+    uri: 'https://api.postmarkapp.com/' + options.pathname,
+    headers: {
+      charset: 'utf-8',
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'X-Postmark-Server-Token': options.token
+    }
+  };
+
+  if (options.body) {
+    requestDetails.body = JSON.stringify(options.body);
+  }
+
+  request(requestDetails, function(err, res, body) {
+    if (err) {
+      callback(err);
+      return;
+    }
+
+    var result;
+
+    try {
+      result = JSON.parse(body);
+    } catch(err) {
+      callback(new PMKError('Failed to parse response'));
+      return;
+    }
+
+    if (result.ErrorCode) {
+      if (result.Message) {
+        err = result.Message;
+        delete result.Message;
+      } else {
+        err = 'Failed';
+      }
+      callback(new PMKError(err, result));
+      return;
+    }
+
+    callback(null, result);
+  });
+}
 
 module.exports = PMK;
