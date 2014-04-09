@@ -11,6 +11,7 @@ var PMKError = require('./error.js');
 // globals
 var nonWord = /[^a-z0-9 ]/i;
 var noOp = function() {};
+var slice = Array.prototype.slice;
 
 /**
   Constructor for the API
@@ -22,7 +23,10 @@ function PMK(token) {
     throw 'You must initialize with a valid postmark api token';
   }
 
-  this.token = token;
+  this.get = curry(makeRequest, token, 'GET');
+  this.post = curry(makeRequest, token, 'POST');
+  this.put = curry(makeRequest, token, 'PUT');
+  this.delete = curry(makeRequest, token, 'DELETE');
 }
 
 /**
@@ -175,12 +179,7 @@ PMK.prototype.email = function(message, callback) {
     }
 
     // finally, the request
-    makeRequest({
-      token: self.token,
-      method: 'POST',
-      pathname: 'email',
-      args: body
-    }, callback);
+    self.post('email', body, callback);
   }
 };
 
@@ -190,11 +189,7 @@ PMK.prototype.email = function(message, callback) {
   @param {Function} callback Callback function
 */
 PMK.prototype.deliverystats = function(callback) {
-  makeRequest({
-    token: this.token, 
-    method: 'GET', 
-    pathname: 'deliverystats'
-  }, callback);
+  this.get('deliverystats', callback);
 };
 
 /**
@@ -210,12 +205,7 @@ PMK.prototype.deliverystats = function(callback) {
   @param {Function} callback Callback function
 */
 PMK.prototype.bounces = function(options, callback) {
-  makeRequest({
-    token: this.token,
-    method: 'GET',
-    pathname: 'bounces',
-    args: options
-  }, callback);
+  this.get('bounces', options, callback);
 };
 
 /**
@@ -225,11 +215,7 @@ PMK.prototype.bounces = function(options, callback) {
   @param {Function} callback Callback function
 */
 PMK.prototype.bounce = function(id, callback) {
-  makeRequest({
-    token: this.token,
-    method: 'GET',
-    pathname: 'bounces/' + id
-  }, callback);
+  this.get('bounces/' + id, callback);
 };
 
 /**
@@ -239,11 +225,7 @@ PMK.prototype.bounce = function(id, callback) {
   @param {Function} callback Callback function
 */
 PMK.prototype.bounceDump = function(id, callback) {
-  makeRequest({
-    token: this.token,
-    method: 'GET',
-    pathname: 'bounces/' + id + '/dump'
-  }, callback);
+  this.get('bounces/' + id + '/dump', callback);
 };
 
 /**
@@ -252,48 +234,340 @@ PMK.prototype.bounceDump = function(id, callback) {
   @param {Function} callback Callback function
 */
 PMK.prototype.bounceDump = function(callback) {
-  makeRequest({
-    token: this.token,
-    method: 'GET',
-    pathname: 'bounces/tags'
-  }, callback);
+  this.get('bounces/tags', callback);
 };
 
 /**
   Activates a deactivated bounce
 
   @param {String} id The bounce id
-  @param {Function} callback Callback function
+  @param {Function} [callback] Callback function
 */
 PMK.prototype.bounceActivate = function(id, callback) {
-  makeRequest({
-    token: this.token,
-    method: 'PUT',
-    pathname: 'bounces/' + id + '/active'
-  }, callback);
+  callback = callback || noOp;
+
+  this.put('bounces/' + id + '/active', callback);
 };
 
-function makeRequest(options, callback) {
-  var requestDetails = {
-    method: options.method,
-    uri: 'https://api.postmarkapp.com/' + options.pathname,
+/**
+  Gets sent messages
+
+  @param {Object} options The filtering options
+  @param {String|Number} options.count Paging count
+  @param {String|Number} options.offset Paging offset
+  @param {String} [options.recipient] Who the message was sent to
+  @param {String} [options.fromemail] Messages with a given 'from' email address
+  @param {String} [options.tag] Messages with a given tag
+  @param {String} [options.subject] Messages with a given subject
+  @param {Function} callback Callback function
+*/
+PMK.prototype.outbound = function(options, callback) {
+  this.get('messages/outbound', options, callback);
+};
+
+/**
+  Get details for a single sent message
+
+  @param {String} id The message id for the email
+  @param {Function} callback Callback function
+*/
+PMK.prototype.outboundMessage = function(id, callback) {
+  this.get('messages/outbound/' + id + '/details', callback);
+};
+
+/**
+  Get sent email dump
+
+  @param {String} id The message id for the email
+  @param {Function} callback Callback function
+*/
+PMK.prototype.outboundMessageDump = function(id, callback) {
+  this.get('messages/outbound/' + id + '/dump', callback);
+};
+
+/**
+  Gets recieved messages
+
+  @param {Object} options The filtering options
+  @param {String|Number} options.count Paging count
+  @param {String|Number} options.offset Paging offset
+  @param {String} [options.recipient] Who the message was sent to
+  @param {String} [options.fromemail] Messages with a given 'from' email address
+  @param {String} [options.tag] Messages with a given tag
+  @param {String} [options.subject] Messages with a given subject
+  @param {String} [options.mailboxhash] Messages with a given mailboxhash
+  @param {Function} callback Callback function
+*/
+PMK.prototype.inbound = function(options, callback) {
+  this.get('messages/inbound', options, callback);
+};
+
+/**
+  Get details for a single recieved message
+
+  @param {String} id The message id for the email
+  @param {Function} callback Callback function
+*/
+PMK.prototype.inboundMessage = function(id, callback) {
+  this.get('messages/inbound/' + id + '/details', callback);
+};
+
+/**
+  Fetches a list of Sender Signatures
+
+  @param {Object} options The paging options
+  @param {String|Number} options.count Paging count
+  @param {String|Number} options.offset Paging offset
+  @param {Function} callback Callback function
+*/
+PMK.prototype.senders = function(options, callback) {
+  this.get('senders', options, callback);
+};
+
+/**
+  Fetches a single Sender's details
+
+  @param {String} id The Sender id
+  @param {Function} callback Callback function
+*/
+PMK.prototype.sender = function(id, callback) {
+  this.get('senders/' + id, callback);
+};
+
+/**
+  Creates a new Sender Signature
+
+  @param {Object} options The creation options
+  @param {String} options.name The name of the sender
+  @param {String} options.from The from email address
+  @param {String} [options.reply] The reply-to email address
+  @param {Function} [callback] Callback function
+*/
+PMK.prototype.createSender = function(options, callback) {
+  callback = callback || noOp;
+
+  var body = {
+    Name: options.name,
+    FromEmail: options.from
+  };
+
+  if (options.reply) {
+    body.ReplyToEmail = options.reply;
+  }
+
+  this.post('senders', body, callback);
+};
+
+/**
+  Updates a Sender Signature
+
+  @param {String} id The sender id
+  @param {Object} options The update options
+  @param {String} options.name The name of the sender
+  @param {String} [options.reply] The reply-to email address
+  @param {Function} [callback] Callback function
+*/
+PMK.prototype.updateSender = function(id, options, callback) {
+  callback = callback || noOp;
+
+  var body = {
+    Name: options.name
+  };
+
+  if (options.reply) {
+    body.ReplyToEmail = options.reply;
+  }
+
+  this.put('senders/' + id, body, callback);
+};
+
+/**
+  Resends confirmation email for a Sender Signature
+
+  @param {String} id The sender id
+  @param {Function} [callback] Callback function
+*/
+PMK.prototype.resendSender = function(id, callback) {
+  callback = callback || noOp;
+
+  this.post('senders/' + id + '/resend', callback);
+};
+
+/**
+  Deletes a Sender Signature
+
+  @param {String} id The sender id
+  @param {Function} [callback] Callback function
+*/
+PMK.prototype.deleteSender = function(id, callback) {
+  callback = callback || noOp;
+
+  this.delete('sender/' + id, callback);
+};
+
+/**
+  Verifies a SPF record
+
+  @param {String} id The sender id
+  @param {Function} [callback] Callback function
+*/
+PMK.prototype.verifySPF = function(id, callback) {
+  callback = callback || noOp;
+
+  this.post('senders/' + id + '/verifyspf', callback);
+};
+
+/**
+  Requests a new DKIM
+
+  @param {String} id The sender id
+  @param {Function} [callback] Callback function
+*/
+PMK.prototype.requestDKIM = function(id, callback) {
+  callback = callback || noOp;
+
+  this.post('senders/' + id + '/requestnewdkim', callback);
+};
+
+/**
+  Lists servers
+
+  @param {Object} options The listing options
+  @param {String|Number} options.count Paging count
+  @param {String|Number} options.offset Paging offset
+  @param {String} options.name Server name to search by (.e.g 'production')
+  @param {Function} callback Callback function
+*/
+PMK.prototype.servers = function(options, callback) {
+  this.get('servers', options, callback);
+};
+
+/**
+  Gets a single server's details
+
+  @param {String} id The server's id
+  @param {Function} callback Callback function
+*/
+PMK.prototype.server = function(id, callback) {
+  this.get('servers/' + id, callback);
+};
+
+/**
+  Creates a new server
+
+  @param {Object} options The listing options
+  @param {String} options.name The name of the server
+  @param {String} [options.color] The color indicator (e.g. 'red')
+  @param {Boolean} [options.smtp] Indicate if this Server should have SMTP access turned on
+  @param {Boolean} [options.raw] Indicate if Inbound web hook http post calls should include the original RAW email in the JSON body
+  @param {String} [options.inboundHook] Url to send http posts to for Inbound message processing
+  @param {String} [options.bounceHook] Url to send http posts to for any message bounces that occur on this Server
+  @param {String} [options.inboundDomain] The MX domain used for MX Inbound processing
+  @param {Function} [callback] Callback function
+*/
+PMK.prototype.createServer = function(options, callback) {
+  callback = callback || noOp;
+
+  var body = {
+    Name: options.name
+  };
+
+  var pairs = {
+    color: 'Color',
+    smtp: 'SmtpApiActivated',
+    raw: 'RawEmailEnabled',
+    inboundHook: 'InboundHookUrl',
+    bounceHook: 'BounceHookUrl',
+    inboundDomain: 'InboundDomain'
+  };
+
+  for (var key in pairs) {
+    if (options[key]) {
+      body[ pars[key] ] = options[key];
+    }
+  }
+
+  this.post('servers', body, callback);
+};
+
+/**
+  Edits an existing server
+
+  @param {String} id The server id
+  @param {Object} options The listing options
+  @param {String} options.name The name of the server
+  @param {String} [options.color] The color indicator (e.g. 'red')
+  @param {Boolean} [options.smtp] Indicate if this Server should have SMTP access turned on
+  @param {Boolean} [options.raw] Indicate if Inbound web hook http post calls should include the original RAW email in the JSON body
+  @param {String} [options.inboundHook] Url to send http posts to for Inbound message processing
+  @param {String} [options.bounceHook] Url to send http posts to for any message bounces that occur on this Server
+  @param {String} [options.inboundDomain] The MX domain used for MX Inbound processing
+  @param {Function} [callback] Callback function
+*/
+PMK.prototype.updateServer = function(id, options, callback) {
+  callback = callback || noOp;
+
+  var body = {};
+
+  var pairs = {
+    name: 'Name',
+    color: 'Color',
+    smtp: 'SmtpApiActivated',
+    raw: 'RawEmailEnabled',
+    inboundHook: 'InboundHookUrl',
+    bounceHook: 'BounceHookUrl',
+    inboundDomain: 'InboundDomain'
+  };
+
+  for (var key in pairs) {
+    if (options[key]) {
+      body[ pars[key] ] = options[key];
+    }
+  }
+
+  this.put('servers/' + id, body, callback);
+};
+
+/**
+  Deletes an existing server
+
+  @param {String} id The server id
+  @param {Function} [callback] Callback function
+*/
+PMK.prototype.deleteServer = function(id, callback) {
+  callback = callback || noOp;
+
+  this.delete('servers/' + id, callback);
+};
+
+// method to make requests to the postmark api
+// data is optional (becomes qs or body)
+function makeRequest(token, method, pathname, data, callback) {
+  if (arguments.length < 5) {
+    callback = data;
+    data = null;
+  }
+
+  var options = {
+    method: method,
+    uri: 'https://api.postmarkapp.com/' + pathname,
     headers: {
       charset: 'utf-8',
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      'X-Postmark-Server-Token': options.token
+      'X-Postmark-Server-Token': token
     }
   };
 
-  if (options.args) {
-    if (options.method.toUpperCase() === 'POST') {
-      requestDetails.body = JSON.stringify(options.args);
+  if (data) {
+    if (method.toUpperCase() === 'POST') {
+      options.body = JSON.stringify(data);
     } else {
-      requestDetails.qs = options.args;
+      options.qs = data;
     }
   }
 
-  request(requestDetails, function(err, res, body) {
+  request(options, function(err, res, body) {
     if (err) {
       callback(err);
       return;
@@ -321,6 +595,16 @@ function makeRequest(options, callback) {
 
     callback(null, result);
   });
+}
+
+// curry utility
+function curry(fn) {
+  var args = slice.call(arguments, 1);
+
+  return function() {
+    // keeping the 'this' of this function, which will be useful for prototype methods
+    return fn.apply(this, args.concat(slice.call(arguments)));
+  };
 }
 
 module.exports = PMK;
