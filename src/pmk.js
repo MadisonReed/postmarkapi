@@ -142,7 +142,7 @@ PMK.prototype.email = function(message, callback) {
           (!attach.Name || !attach.Content || !attach.ContentType) &&
           (!attach.name || !attach.content || !attach.contentType)
         ) {
-          cb(new PMKError('Attachment passwed with invalid attributes (name, content, contentType)'));
+          cb(new PMKError('Attachment passed with invalid attributes (name, content, contentType)'));
           return;
         }
 
