@@ -137,19 +137,15 @@ PMK.prototype.email = function(message, callback) {
     async.each(message.attachments, function(attach, cb) {
       // if attachment is straight object
       if (toString.call(attach) === '[object Object]') {
-        if (
-          // allowing 2 naming formats
-          (!attach.Name || !attach.Content || !attach.ContentType) &&
-          (!attach.name || !attach.content || !attach.contentType)
-        ) {
+        if (!attach.name && !attach.content && !attach.contentType) {
           cb(new PMKError('Attachment passed with invalid attributes (name, content, contentType)'));
           return;
         }
 
         body.Attachments.push({
-          Name: attach.name || attach.Name,
-          Content: attach.content || attach.Content,
-          ContentType: attach.contentType || attach.ContentType
+          Name: attach.name,
+          Content: attach.content,
+          ContentType: attach.contentType
         });
         cb();
         return;
