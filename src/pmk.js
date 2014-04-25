@@ -12,6 +12,7 @@ var PMKError = require('./error.js');
 var nonWord = /[^a-z0-9 ]/i;
 var noOp = function() {};
 var slice = Array.prototype.slice;
+var toString = Object.prototype.toString;
 
 /**
   Constructor for the API
@@ -43,7 +44,7 @@ function PMK(token) {
   @param {String|String[]} [message.reply] Reply-To email address
   @param {String} [message.tag] Tag
   @param {Object} [message.headers] Custom headers to send in request (key value pairs)
-  @param {String[]} Attachments (string paths to local files)
+  @param {Object[]|String[]} message.attachments Attachments (string paths to local files, or objects with base64 encoded files)
   @param {String} message.subject Subject
   @param {String} [message.text] Text body
   @param {String} [message.html] HTML body
@@ -133,22 +134,43 @@ PMK.prototype.email = function(message, callback) {
   if (message.attachments) {
     body.Attachments = [];
 
-    async.each(message.attachments, function(filepath, cb) {
-      if (typeof filepath !== 'string') {
+    async.each(message.attachments, function(attach, cb) {
+      // if attachment is straight object
+      if (toString.call(attach) === '[object Object]') {
+        if (
+          // allowing 2 naming formats
+          (!attach.Name || !attach.Content || !attach.ContentType) &&
+          (!attach.name || !attach.content || !attach.contentType)
+        ) {
+          cb(new PMKError('Attachment passwed with invalid attributes (name, content, contentType)'));
+          return;
+        }
+
+        body.Attachments.push({
+          Name: attach.name || attach.Name,
+          Content: attach.content || attach.Content,
+          ContentType: attach.contentType || attach.ContentType
+        });
+        cb();
+        return;
+      }
+
+      // else if attachment is 
+      if (typeof attach !== 'string') {
         cb(new PMKError('Attachments must be file paths'));
         return;
       }
 
-      fs.readFile(filepath, function(err, content) {
+      fs.readFile(attach, function(err, content) {
         if (err) {
           cb(err);
           return;
         }
 
         body.Attachments.push({
-          Name: path.basename(filepath),
+          Name: path.basename(attach),
           Content: content.toString('base64'),
-          ContentType: mime.lookup(filepath)
+          ContentType: mime.lookup(attach)
         });
         cb();
       });

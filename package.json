@@ -2,7 +2,7 @@
   "author": "Tim Marshall <timothyjmarshall@gmail.com>",
   "name": "postmarkapi",
   "description": "Complete Postmark REST API wrapper",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "main": "./src/pmk.js",
   "engines": {
     "node": ">=0.10.20"
