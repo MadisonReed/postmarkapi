@@ -68,6 +68,23 @@ pmk.email({
 }, function(err, response) {
   // ...
 });
+
+// or
+
+pmk.email({
+  to: 'someaddress@somewhere.com',
+  from: 'fromaddress@somewhere.com',
+  subject: 'Test Email',
+  text: 'Hello World',
+  html: '<strong>Hello World</strong>',
+  attachments: [{
+    name: 'orders.csv',
+    content: ordersContent.toString('base64'),
+    contentType: 'text/csv'
+  }]
+}, function(err, response) {
+  // ...
+});
 ```
 
 ## Bounces
