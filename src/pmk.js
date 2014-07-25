@@ -188,9 +188,10 @@ PMK.prototype.email = function(message, callback) {
       html: 'HtmlBody',
       text: 'TextBody',
       subject: 'Subject',
-      to: 'To'
-    }
-    for (key in pairs) {
+      to: 'To',
+      trackOpens: 'TrackOpens'
+    };
+    for (var key in pairs) {
       if (message[key]) {
         body[ pairs[key] ] = message[key];
       }
