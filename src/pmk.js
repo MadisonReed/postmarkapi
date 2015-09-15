@@ -265,7 +265,7 @@ PMK.prototype.bounceTags = function(callback) {
 PMK.prototype.bounceActivate = function(id, callback) {
   callback = callback || noOp;
 
-  this.put('bounces/' + id + '/active', callback);
+  this.put('bounces/' + id + '/activate', callback);
 };
 
 /**
