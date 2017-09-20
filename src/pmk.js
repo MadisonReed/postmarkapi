@@ -62,10 +62,8 @@ PMK.prototype.email = function(message, callback) {
   if (!message.to) {
     callback(new PMKError('\'to\' email address not set'));
     return;
-  } else if (!message.subject) {
-    callback(new PMKError('\'subject\' for email not set'));
-    return;
-  } else if (!message.text && !message.html) {
+  }
+  if (!message.text && !message.html) {
     callback(new PMKError('email content (\'text\', \'html\') not set'));
     return;
   }
@@ -265,7 +263,7 @@ PMK.prototype.bounceTags = function(callback) {
 PMK.prototype.bounceActivate = function(id, callback) {
   callback = callback || noOp;
 
-  this.put('bounces/' + id + '/active', callback);
+  this.put('bounces/' + id + '/activate', callback);
 };
 
 /**
