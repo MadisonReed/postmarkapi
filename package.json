@@ -10,7 +10,7 @@
   "dependencies": {
     "async": "0.7.0",
     "mime": "1.2.11",
-    "request": "2.81.0"
+    "request": "2.83.0"
   },
   "repository": "git://github.com/MadisonReed/postmarkapi"
 }
