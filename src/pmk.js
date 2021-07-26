@@ -166,7 +166,7 @@ PMK.prototype.email = function(message, callback) {
         body.Attachments.push({
           Name: path.basename(attach),
           Content: content.toString('base64'),
-          ContentType: mime.lookup(attach)
+          ContentType: mime.getType(attach)
         });
         cb();
       });
